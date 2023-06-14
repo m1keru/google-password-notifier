@@ -1,0 +1,14 @@
+<%- | String[1] $service_account_email,
+      String[1] $app_password,
+      String[1] $delegated_email,
+      Integer $treshold,
+      String[1] $sender_email,
+      String[1] $service_account_p12
+| -%>
+---
+service_account_email: <%= $service_account_email %>
+app_password: <%= $app_password %>
+delegated_email: <%= $delegated_email %>
+treshold: <%= $treshold %>
+sender_email: <%= $sender_email %>
+service_account_p12: <%= $service_account_p12 %>

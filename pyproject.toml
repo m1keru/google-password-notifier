@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "google-password-notifier"
+version = "0.0.3"
+description = ""
+authors = ["Mikhail <Mikhail>"]
+readme = "README.md"
+packages = [{include = "google_password_notifier"}]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+google-api-python-client = "^2.88.0"
+google-auth-oauthlib = "^1.0.0"
+oauth2client = "^4.1.3"
+pyopenssl = "^23.2.0"
+python-dateutil = "^2.8.2"
+pyyaml = "^6.0"
+pathlib = "^1.0.1"
+flake8 = "^6.0.0"
+
+[tool.poetry.scripts]
+google-password-notifier = "google_password_notifier.notify:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
