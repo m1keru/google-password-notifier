@@ -22,7 +22,6 @@ SAMPLE_CFG = {
     "sender_email": "alert@example.com",
     "service_account_p12": "/etc/google-password-notifier/secret.p12",
     "users_excluded": [
-        "admin@easybrain.com",
         "example2@example.com"
     ],
     "policy_numdays": 90
