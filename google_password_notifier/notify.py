@@ -20,13 +20,19 @@ SAMPLE_CFG = {
     "delegated_email": "admin@example.com",
     "treshold": 10,
     "sender_email": "alert@example.com",
-    "service_account_p12": "/etc/google-password-notifier/secret.p12"
+    "service_account_p12": "/etc/google-password-notifier/secret.p12",
+    "users_excluded": [
+        "admin@easybrain.com",
+        "example2@example.com"
+    ],
+    "policy_numdays": 90
 }
 
 
 class GoogleNotifier(object):
     def __init__(self, config_file):
         try:
+            self._CFG_PATH = Path(config_file).parent
             self.make_config_dir(config_file)
             with open(config_file, 'r') as file:
                 self.cfg = yaml.safe_load(file)
@@ -36,15 +42,16 @@ class GoogleNotifier(object):
             self._TRESHOLD = self.cfg["treshold"]
             self._SENDER = self.cfg["sender_email"]
             self._SERVICE_ACCOUNT_P12 = self.cfg["service_account_p12"]
+            self._USERS_EXCLUDED = self.cfg["users_excluded"]
+            self._RETENTION = self.cfg["policy_numdays"]
         except Exception as e:
             print(f"prepare config file {e}")
             return
 
     def make_config_dir(self, config_file):
-        cfg_path = Path(config_file).parent
-        if not os.path.exists(cfg_path):
-            os.makedirs(cfg_path)
-            with open(f"{cfg_path}/sample-config.yaml", 'w') as file:
+        if not os.path.exists(self._CFG_PATH):
+            os.makedirs(self._CFG_PATH)
+            with open(f"{self._CFG_PATH}/sample-config.yaml", 'w') as file:
                 yaml.dump(SAMPLE_CFG, file)
 
     def send_email(self, to, msg_text):
@@ -74,14 +81,29 @@ class GoogleNotifier(object):
         http = credentials.authorize(httplib2.Http())
         return build('admin', 'reports_v1', http=http)
 
+    def load_users_db(self):
+        try:
+            self.user_db = yaml.safe_load(open(f"{self._CFG_PATH}/users_db.yaml", "r"))  # noqa: E501
+            logging.debug("{self._CFG_PATH}/users_db.yaml found, loading")
+        except Exception as e:
+            self.user_db = {}
+            logging.error(f"No users db found: {e}")
+
+    def store_users_db(self):
+        try:
+            with open(f"{self._CFG_PATH}/users_db.yaml", "w") as db_file:
+                yaml.dump(self.user_db, db_file, default_flow_style=False, sort_keys=False)  # noqa: E501
+        except Exception as e:
+            logging.error(f"Unable to store users_db in {self._CFG_PATH}/users_db.yaml. {e}")  # noqa: E501
+
     def get_usersdb(self):
-        FOUR_MONTHS = (datetime.now() - timedelta(days=120)).isoformat()+"Z"
+        LOG_MONTHS = (datetime.now() - timedelta(days=self._RETENTION + 30)).isoformat() + "Z"  # noqa: E501
         svc = self.create_reports_service()
         request = svc.activities().list(
             applicationName='user_accounts', userKey='all',
-            eventName='password_edit', startTime=(FOUR_MONTHS))
+            eventName='password_edit', startTime=(LOG_MONTHS))
         response = request.execute()
-        self.user_db = {}
+        self.load_users_db()
         for event in response['items']:
             user = event['actor']['email']
             event_date = event['id']['time']
@@ -92,6 +114,11 @@ class GoogleNotifier(object):
                 continue
             self.user_db[user] = event_date
             logging.debug(f"set password date for {user} = {event_date}")
+        for excluded_user in self._USERS_EXCLUDED:
+            logging.debug(f"pop user {excluded_user} from list")
+            if excluded_user in self.user_db.keys():
+                self.user_db.pop(excluded_user)
+        self.store_users_db()
         return self.user_db
 
     def notify(self):
@@ -100,19 +127,19 @@ class GoogleNotifier(object):
             delta = (datetime.now() - event_date).days
             logging.debug(
                 f"user: {email}, event: {event_date},  delta: {delta}")
-            if (90 - delta) < 0:
+            if (self._RETENTION - delta) < 0:
                 print(f"Password expired for user {email}")
                 msg = f"Dear {email}! Your password is expired! Please ask admins to reset it for you!"  # noqa: E501
                 self.send_email(email, msg)
                 continue
-            if (90 - delta) < self._TRESHOLD:
-                msg = f"""Dear {email}! Your password is about to expire in {90-delta} days! Please update it!
+            if (self._RETENTION - delta) < self._TRESHOLD:
+                msg = f"""Dear {email}! Your password is about to expire in {self._RETENTION-delta} days! Please update it!
 How to reset password:
 https://support.google.com/accounts/answer/41078?hl=en&co=GENIE.Platform%3DDesktop
                 """  # noqa: E501
                 self.send_email(email, msg)
                 print(
-                    f"Notify user {email} that password expires in  {90-delta} days")  # noqa: E501
+                    f"Notify user {email} that password expires in  {self._RETENTION-delta} days")  # noqa: E501
 
 
 def run():
@@ -127,6 +154,9 @@ def run():
     pprint.pprint(args)
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+    if not args.config:
+        print("Please specify config file")
+        return
     cli = GoogleNotifier(args.config)
     cli.get_usersdb()
     cli.notify()
