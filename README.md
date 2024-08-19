@@ -1,3 +1,9 @@
+# info
+The binary crawls for password-change event on Google Worksapce and notify 
+about close password expiration in advance by mail. It allows you to track events
+for more than 6 months which is the hard limit for Google Security Audit events.
+It is done with local persistence, binary creates local user_events  yaml db file.
+
 # build
 ``` bash
 cd google-password-notifier
