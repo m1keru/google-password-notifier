@@ -3,8 +3,7 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from googleapiclient.discovery import build
-from oauth2client.service_account import ServiceAccountCredentials
-import httplib2
+from google.oauth2 import service_account
 import logging
 import yaml
 import os
@@ -20,8 +19,9 @@ SAMPLE_CFG = {
     "delegated_email": "admin@example.com",
     "treshold": 10,
     "sender_email": "alert@example.com",
-    "service_account_p12": "/etc/google-password-notifier/secret.p12",
+    "service_account_key": "/etc/google-password-notifier/secret.json",
     "users_excluded": [
+        "admin@easybrain.com",
         "example2@example.com"
     ],
     "policy_numdays": 90
@@ -40,7 +40,7 @@ class GoogleNotifier(object):
             self._DELEGATED_EMAIL = self.cfg["delegated_email"]
             self._TRESHOLD = self.cfg["treshold"]
             self._SENDER = self.cfg["sender_email"]
-            self._SERVICE_ACCOUNT_P12 = self.cfg["service_account_p12"]
+            self._SERVICE_ACCOUNT_KEY = self.cfg["service_account_key"]
             self._USERS_EXCLUDED = self.cfg["users_excluded"]
             self._RETENTION = self.cfg["policy_numdays"]
         except Exception as e:
@@ -72,13 +72,12 @@ class GoogleNotifier(object):
                                 to_addrs=receiver_email)
 
     def create_reports_service(self):
-        credentials = ServiceAccountCredentials.from_p12_keyfile(
-            self._SERVICE_ACCOUNT_EMAIL,
-            self._SERVICE_ACCOUNT_P12, 'notasecret',
-            scopes=['https://www.googleapis.com/auth/admin.reports.audit.readonly'])  # noqa: E501
-        credentials = credentials.create_delegated(self._DELEGATED_EMAIL)
-        http = credentials.authorize(httplib2.Http())
-        return build('admin', 'reports_v1', http=http)
+        credentials = service_account.Credentials.from_service_account_file(
+            self._SERVICE_ACCOUNT_KEY,
+            scopes=['https://www.googleapis.com/auth/admin.reports.audit.readonly']  # noqa: E501
+        )
+        delegated_credentials = credentials.with_subject(self._DELEGATED_EMAIL)
+        return build('admin', 'reports_v1', credentials=delegated_credentials)
 
     def load_users_db(self):
         try:
@@ -132,13 +131,13 @@ class GoogleNotifier(object):
                 self.send_email(email, msg)
                 continue
             if (self._RETENTION - delta) < self._TRESHOLD:
-                msg = f"""Dear {email}! Your password is about to expire in {self._RETENTION-delta} days! Please update it!
+                msg = f"""Dear {email}! Your password is about to expire in {self._RETENTION - delta} days! Please update it!
 How to reset password:
 https://support.google.com/accounts/answer/41078?hl=en&co=GENIE.Platform%3DDesktop
                 """  # noqa: E501
                 self.send_email(email, msg)
                 print(
-                    f"Notify user {email} that password expires in  {self._RETENTION-delta} days")  # noqa: E501
+                    f"Notify user {email} that password expires in  {self._RETENTION - delta} days")  # noqa: E501
 
 
 def run():
