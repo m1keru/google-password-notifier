@@ -37,10 +37,10 @@ func (s *SMTPSender) Send(to, subject, body string) error {
 
 	client, err := smtp.NewClient(conn, s.host)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("creating SMTP client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if err := client.Auth(smtp.PlainAuth("", s.from, s.password, s.host)); err != nil {
 		return fmt.Errorf("SMTP auth: %w", err)
