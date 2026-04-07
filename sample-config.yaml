@@ -1,0 +1,8 @@
+service_account_key: /etc/google-password-notifier/service-account.json
+delegated_email: admin@example.com
+app_password: your-app-password
+sender_email: alert@example.com
+threshold: 10
+policy_numdays: 90
+users_excluded:
+  - excluded@example.com
