@@ -122,7 +122,8 @@ func (n *Notifier) notifyExpiring(userEmail string, daysRemaining int) {
 	subject := fmt.Sprintf("Google Workspace password expires in %d days", daysRemaining)
 	body := fmt.Sprintf(
 		"Dear %s!\n\nYour Google Workspace password will expire in %d days. Please update it.\n\n"+
-			"How to reset your password:\nhttps://support.google.com/accounts/answer/41078\n",
+			"If you don't know how to reset your password, please contact admin or post a question on support channel.\n"+
+			"Note: after you change your password, it can take up to 30 minutes after the first attempt to connect for the new password to start working on the office Wi-Fi network. If you can't connect right after changing your password, please wait a bit and try again. Thank you.\n",
 		userEmail, daysRemaining,
 	)
 
