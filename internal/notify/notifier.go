@@ -102,8 +102,12 @@ func (n *Notifier) sendNotifications() {
 func (n *Notifier) notifyExpired(userEmail string) {
 	subject := "Google Workspace password has expired"
 	body := fmt.Sprintf(
-		"Dear %s!\n\nYour Google Workspace password has expired. "+
-			"Please contact your administrator to reset it.\n",
+		"Hello,\n\n"+
+			"This is a friendly note that the Google Workspace password for %s has expired.\n\n"+
+			"No worries - this happens, and it's quick to fix. Please reach out to your administrator "+
+			"or ask in the support channel, and someone will be glad to help you set a new password.\n\n"+
+			"Thank you, and sorry for any inconvenience.\n\n"+
+			"Kind regards,\nIT Support\n",
 		userEmail,
 	)
 
@@ -119,12 +123,20 @@ func (n *Notifier) notifyExpired(userEmail string) {
 }
 
 func (n *Notifier) notifyExpiring(userEmail string, daysRemaining int) {
-	subject := fmt.Sprintf("Google Workspace password expires in %d days", daysRemaining)
+	subject := fmt.Sprintf("Google Workspace password expires in %s", pluralDays(daysRemaining))
 	body := fmt.Sprintf(
-		"Dear %s!\n\nYour Google Workspace password will expire in %d days. Please update it.\n\n"+
-			"If you don't know how to reset your password, please contact admin or post a question on support channel.\n"+
-			"Note: after you change your password, it can take up to 30 minutes after the first attempt to connect for the new password to start working on the office Wi-Fi network. If you can't connect right after changing your password, please wait a bit and try again. Thank you.\n",
-		userEmail, daysRemaining,
+		"Hello,\n\n"+
+			"This is a friendly reminder that the Google Workspace password for %s will expire in %s. "+
+			"Whenever it's convenient for you, we'd kindly ask you to update it.\n\n"+
+			"If you have any questions or would like a hand, please feel free to reach out to your administrator "+
+			"or ask in the support channel - we're always happy to help.\n\n"+
+			"A small tip: after you change your password, the office Wi-Fi may need up to 30 minutes "+
+			"to recognise the new one. If you can't connect right away, please wait a little and try again. "+
+			"In the meantime, you're very welcome to stop by your administrator, who will be happy "+
+			"to help you connect to a temporary network.\n\n"+
+			"Thank you for helping keep our accounts secure!\n\n"+
+			"Kind regards,\nIT Support\n",
+		userEmail, pluralDays(daysRemaining),
 	)
 
 	n.logger.Info("password expiring soon", "user", userEmail, "days_remaining", daysRemaining)
@@ -136,4 +148,11 @@ func (n *Notifier) notifyExpiring(userEmail string, daysRemaining int) {
 	if err := n.sender.Send(userEmail, subject, body); err != nil {
 		n.logger.Error("failed to send expiring notification", "user", userEmail, "error", err)
 	}
+}
+
+func pluralDays(days int) string {
+	if days == 1 {
+		return "1 day"
+	}
+	return fmt.Sprintf("%d days", days)
 }
